@@ -1,7 +1,7 @@
 # Jellyfish AI短剧工厂 / AI Short Drama Studio
 
 <p align="center">
-  <img src="./logo.svg" alt="Jellyfish Logo" width="160" />
+  <img src="./docs/img/logo.svg" alt="Jellyfish Logo" width="160" />
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@
 
 | 项目概览 | 资产管理 |
 | --- | --- |
-| <img src="./static/img/docs/project.png" alt="项目概览 / Project Overview" width="420" /> | <img src="./static/img/docs/%E8%B5%84%E4%BA%A7%E7%AE%A1%E7%90%86.png" alt="资产管理 / Asset Management" width="420" /> |
+| <img src="./docs/img/project.png" alt="项目概览 / Project Overview" width="420" /> | <img src="./docs/img/%E8%B5%84%E4%BA%A7%E7%AE%A1%E7%90%86.png" alt="资产管理 / Asset Management" width="420" /> |
 
 ## ✨ 核心价值
 
