@@ -10,17 +10,14 @@ from __future__ import annotations
 from typing import Any, AsyncIterator, Optional
 
 from app.chains.agents import (
-    FilmEntityExtractor,
-    FilmShotlistStoryboarder,
+    FilmEntityExtractorAgent,
+    FilmShotlistStoryboarderAgent,
     ShotFirstFramePromptAgent,
     ShotKeyFramePromptAgent,
     ShotLastFramePromptAgent,
 )
-from app.core.skills_runtime import (
-    FilmEntityExtractionResult,
-    FilmShotlistResult,
-    ShotFramePromptResult,
-)
+from app.schemas.skills.film import FilmEntityExtractionResult, FilmShotlistResult
+from app.schemas.skills.shot_frame_prompt import ShotFramePromptResult
 from app.core.task_manager.types import BaseTask
 
 
@@ -45,27 +42,24 @@ class _BaseAsyncResultTask(BaseTask):
 
 
 class FilmEntityExtractionTask2(_BaseAsyncResultTask):
-    """人物/地点/道具抽取任务（基于 FilmEntityExtractor）。"""
+    """人物/地点/道具抽取任务（基于 FilmEntityExtractorAgent）。"""
 
     TASK_KEY = "film_entity_extraction"
 
     def __init__(
         self,
-        extractor: FilmEntityExtractor,
+        extractor: FilmEntityExtractorAgent,
         *,
         input_dict: dict[str, Any],
-        skill_id: str = "film_entity_extractor",
     ) -> None:
         super().__init__()
         self._extractor = extractor
         self._input_dict = input_dict
-        self._skill_id = skill_id
         self._result: FilmEntityExtractionResult | None = None
 
     async def run(self, *args: Any, **kwargs: Any) -> AsyncIterator[Any] | None:  # type: ignore[override]
         try:
-            self._extractor.load_skill(self._skill_id)
-            self._result = await self._extractor.aextract(self._input_dict)
+            self._result = await self._extractor.aextract(**self._input_dict)
         except Exception as exc:  # noqa: BLE001
             self._error = str(exc)
             self._result = None
@@ -76,27 +70,24 @@ class FilmEntityExtractionTask2(_BaseAsyncResultTask):
 
 
 class FilmShotlistTask2(_BaseAsyncResultTask):
-    """分镜/镜头表抽取任务（基于 FilmShotlistStoryboarder）。"""
+    """分镜/镜头表抽取任务（基于 FilmShotlistStoryboarderAgent）。"""
 
     TASK_KEY = "film_shotlist"
 
     def __init__(
         self,
-        storyboarder: FilmShotlistStoryboarder,
+        storyboarder: FilmShotlistStoryboarderAgent,
         *,
         input_dict: dict[str, Any],
-        skill_id: str = "film_shotlist",
     ) -> None:
         super().__init__()
         self._storyboarder = storyboarder
         self._input_dict = input_dict
-        self._skill_id = skill_id
         self._result: FilmShotlistResult | None = None
 
     async def run(self, *args: Any, **kwargs: Any) -> AsyncIterator[Any] | None:  # type: ignore[override]
         try:
-            self._storyboarder.load_skill(self._skill_id)
-            self._result = await self._storyboarder.aextract(self._input_dict)
+            self._result = await self._storyboarder.aextract(**self._input_dict)
         except Exception as exc:  # noqa: BLE001
             self._error = str(exc)
             self._result = None
@@ -116,27 +107,19 @@ class ShotFramePromptTask(_BaseAsyncResultTask):
         agent: ShotFirstFramePromptAgent | ShotLastFramePromptAgent | ShotKeyFramePromptAgent,
         *,
         input_dict: dict[str, Any],
-        skill_id: str,
     ) -> None:
         super().__init__()
         self._agent = agent
         self._input_dict = input_dict
-        self._skill_id = skill_id
         self._result: ShotFramePromptResult | None = None
 
     async def run(self, *args: Any, **kwargs: Any) -> AsyncIterator[Any] | None:  # type: ignore[override]
         try:
-            self._agent.load_skill(self._skill_id)
-            self._result = await self._agent.aextract(self._input_dict)
+            self._result = await self._agent.aextract(**self._input_dict)
         except Exception as exc:  # noqa: BLE001
             self._error = str(exc)
             self._result = None
         return None
-
-    async def status(self) -> dict[str, Any]:  # type: ignore[override]
-        base = await super().status()
-        base["skill_id"] = self._skill_id
-        return base
 
     async def get_result(self) -> ShotFramePromptResult | None:  # type: ignore[override]
         return self._result

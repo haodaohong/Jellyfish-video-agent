@@ -5,8 +5,8 @@ import json
 from fastapi import APIRouter, Depends
 from langchain_core.runnables import Runnable
 
-from app.chains.agents import FilmEntityExtractor, FilmShotlistStoryboarder
-from app.core.skills_runtime import FilmEntityExtractionResult, FilmShotlistResult
+from app.chains.agents import FilmEntityExtractorAgent, FilmShotlistStoryboarderAgent
+from app.schemas.skills.film import FilmEntityExtractionResult, FilmShotlistResult
 from app.dependencies import get_llm
 from app.schemas.common import ApiResponse, success_response
 
@@ -25,19 +25,16 @@ def extract_entities(
     body: EntityExtractRequest,
     llm: Runnable = Depends(get_llm),
 ) -> ApiResponse[FilmEntityExtractionResult]:
-    """FilmEntityExtractor：人物/地点/道具抽取。"""
-    extractor = FilmEntityExtractor(llm)
-    extractor.load_skill("film_entity_extractor")
+    """FilmEntityExtractorAgent：人物/地点/道具抽取。"""
+    extractor = FilmEntityExtractorAgent(llm)
     chunks_json = json.dumps(
         [{"chunk_id": c.chunk_id, "text": c.text} for c in body.chunks],
         ensure_ascii=False,
     )
     result = extractor.extract(
-        {
-            "source_id": body.source_id,
-            "language": body.language or "zh",
-            "chunks_json": chunks_json,
-        }
+        source_id=body.source_id,
+        language=body.language or "zh",
+        chunks_json=chunks_json,
     )
     return success_response(result)
 
@@ -52,20 +49,17 @@ def extract_shotlist(
     body: ShotlistExtractRequest,
     llm: Runnable = Depends(get_llm),
 ) -> ApiResponse[FilmShotlistResult]:
-    """FilmShotlistStoryboarder：场景/镜头/转场抽取。"""
-    storyboarder = FilmShotlistStoryboarder(llm)
-    storyboarder.load_skill("film_shotlist")
+    """FilmShotlistStoryboarderAgent：场景/镜头/转场抽取。"""
+    storyboarder = FilmShotlistStoryboarderAgent(llm)
     chunks_json = json.dumps(
         [{"chunk_id": c.chunk_id, "text": c.text} for c in body.chunks],
         ensure_ascii=False,
     )
     result = storyboarder.extract(
-        {
-            "source_id": body.source_id,
-            "source_title": body.source_title or "",
-            "language": body.language or "zh",
-            "chunks_json": chunks_json,
-        }
+        source_id=body.source_id,
+        source_title=body.source_title or "",
+        language=body.language or "zh",
+        chunks_json=chunks_json,
     )
     return success_response(result)
 

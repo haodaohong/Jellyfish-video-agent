@@ -7,10 +7,12 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage
-from langchain_core.runnables import Runnable, RunnableLambda
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.outputs import ChatGeneration, ChatResult
+from langchain_core.runnables import Runnable
 
-from app.chains.agents import FilmEntityExtractor, FilmShotlistStoryboarder
-from app.core.skills_runtime import FilmEntityExtractionResult, FilmShotlistResult
+from app.chains.agents import FilmEntityExtractorAgent, FilmShotlistStoryboarderAgent
+from app.schemas.skills.film import FilmEntityExtractionResult, FilmShotlistResult
 
 
 # ---------- FastAPI 应用集成 ----------
@@ -136,18 +138,23 @@ SHOTLIST_RESPONSE_WITH_DATA = """{
 
 
 class TestSkillsPipelineIntegration:
-    """技能完整链路：load_skill -> run (真实 Prompt 格式化 + Mock Agent) -> format_output (真实 JSON 解析)。"""
+    """技能完整链路：run (真实 Prompt 格式化 + Mock Agent) -> format_output (真实 JSON 解析)。"""
 
     def test_entity_extractor_full_pipeline_parses_structured_result(self) -> None:
-        agent = RunnableLambda(lambda _: AIMessage(content=ENTITY_RESPONSE_WITH_DATA))
-        extractor = FilmEntityExtractor(agent)
-        extractor.load_skill("film_entity_extractor")
+        class _MockChatModel(BaseChatModel):
+            @property
+            def _llm_type(self) -> str:  # pragma: no cover
+                return "mock-chat-model"
+
+            def _generate(self, messages, stop=None, run_manager=None, **kwargs) -> ChatResult:  # type: ignore[override]
+                msg = AIMessage(content=ENTITY_RESPONSE_WITH_DATA)
+                return ChatResult(generations=[ChatGeneration(message=msg)])
+
+        extractor = FilmEntityExtractorAgent(_MockChatModel())
         result = extractor.extract(
-            {
-                "source_id": "integration_ch01",
-                "language": "zh",
-                "chunks_json": '[{"chunk_id": "chunk_001", "text": "张三推门进来，在客厅坐下，端起青花瓷茶杯。"}]',
-            }
+            source_id="integration_ch01",
+            language="zh",
+            chunks_json='[{"chunk_id": "chunk_001", "text": "张三推门进来，在客厅坐下，端起青花瓷茶杯。"}]',
         )
         assert isinstance(result, FilmEntityExtractionResult)
         assert result.source_id == "integration_ch01"
@@ -164,16 +171,21 @@ class TestSkillsPipelineIntegration:
         assert result.props[0].category == "other"
 
     def test_shotlist_storyboarder_full_pipeline_parses_structured_result(self) -> None:
-        agent = RunnableLambda(lambda _: AIMessage(content=SHOTLIST_RESPONSE_WITH_DATA))
-        storyboarder = FilmShotlistStoryboarder(agent)
-        storyboarder.load_skill("film_shotlist")
+        class _MockChatModel(BaseChatModel):
+            @property
+            def _llm_type(self) -> str:  # pragma: no cover
+                return "mock-chat-model"
+
+            def _generate(self, messages, stop=None, run_manager=None, **kwargs) -> ChatResult:  # type: ignore[override]
+                msg = AIMessage(content=SHOTLIST_RESPONSE_WITH_DATA)
+                return ChatResult(generations=[ChatGeneration(message=msg)])
+
+        storyboarder = FilmShotlistStoryboarderAgent(_MockChatModel())
         result = storyboarder.extract(
-            {
-                "source_id": "integration_ch01",
-                "source_title": "第一章",
-                "language": "zh",
-                "chunks_json": '[{"chunk_id": "chunk_001", "text": "张三在客厅喝茶。"}]',
-            }
+            source_id="integration_ch01",
+            source_title="第一章",
+            language="zh",
+            chunks_json='[{"chunk_id": "chunk_001", "text": "张三在客厅喝茶。"}]',
         )
         assert isinstance(result, FilmShotlistResult)
         b = result.breakdown
@@ -217,14 +229,11 @@ class TestRealLLMIntegration:
 
     def test_entity_extractor_with_real_llm(self) -> None:
         llm = _build_real_llm()
-        extractor = FilmEntityExtractor(llm)
-        extractor.load_skill("film_entity_extractor")
+        extractor = FilmEntityExtractorAgent(llm)
         result = extractor.extract(
-            {
-                "source_id": "real_llm_test",
-                "language": "zh",
-                "chunks_json": '[{"chunk_id": "c1", "text": "张三走进客厅，李四坐在沙发上。桌上放着一把钥匙。"}]',
-            }
+            source_id="real_llm_test",
+            language="zh",
+            chunks_json='[{"chunk_id": "c1", "text": "张三走进客厅，李四坐在沙发上。桌上放着一把钥匙。"}]',
         )
         assert isinstance(result, FilmEntityExtractionResult)
         assert result.source_id == "real_llm_test"
@@ -233,15 +242,12 @@ class TestRealLLMIntegration:
 
     def test_shotlist_storyboarder_with_real_llm(self) -> None:
         llm = _build_real_llm()
-        storyboarder = FilmShotlistStoryboarder(llm)
-        storyboarder.load_skill("film_shotlist")
+        storyboarder = FilmShotlistStoryboarderAgent(llm)
         result = storyboarder.extract(
-            {
-                "source_id": "real_llm_test",
-                "source_title": "测试",
-                "language": "zh",
-                "chunks_json": '[{"chunk_id": "c1", "text": "张三推门进来。镜头切到李四抬头。"}]',
-            }
+            source_id="real_llm_test",
+            source_title="测试",
+            language="zh",
+            chunks_json='[{"chunk_id": "c1", "text": "张三推门进来。镜头切到李四抬头。"}]',
         )
         assert isinstance(result, FilmShotlistResult)
         assert result.breakdown.source_id == "real_llm_test"

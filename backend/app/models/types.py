@@ -36,7 +36,7 @@ class ShotStatus(str, Enum):
 
 
 class CameraShotType(str, Enum):
-    """景别（与 `app.core.skills_runtime.schemas.ShotType` 对齐，存英文 code）。"""
+    """景别（与 `app.schemas.skills.common.ShotType` 对齐，存英文 code）。"""
 
     ecu = "ECU"  # 大特写
     cu = "CU"  # 特写
@@ -48,7 +48,7 @@ class CameraShotType(str, Enum):
 
 
 class CameraAngle(str, Enum):
-    """机位角度（与 `app.core.skills_runtime.schemas.CameraAngle` 对齐，存英文 code）。"""
+    """机位角度（与 `app.schemas.skills.common.CameraAngle` 对齐，存英文 code）。"""
 
     eye_level = "EYE_LEVEL"  # 平视
     high_angle = "HIGH_ANGLE"  # 高角度
@@ -59,7 +59,7 @@ class CameraAngle(str, Enum):
 
 
 class CameraMovement(str, Enum):
-    """运镜方式（与 `app.core.skills_runtime.schemas.CameraMovement` 对齐，存英文 code）。"""
+    """运镜方式（与 `app.schemas.skills.common.CameraMovement` 对齐，存英文 code）。"""
 
     static = "STATIC"  # 静止
     pan = "PAN"  # 平移
@@ -118,7 +118,7 @@ class TimelineClipType(str, Enum):
 
 
 class DialogueLineMode(str, Enum):
-    """对白模式（与 `app.core.skills_runtime.schemas.DialogueLineMode` 对齐，存英文 code）。"""
+    """对白模式（与 `app.schemas.skills.common.DialogueLineMode` 对齐，存英文 code）。"""
 
     dialogue = "DIALOGUE"  # 对白
     voice_over = "VOICE_OVER"  # 旁白
@@ -127,7 +127,7 @@ class DialogueLineMode(str, Enum):
 
 
 class VFXType(str, Enum):
-    """视效类型（与 `app.core.skills_runtime.schemas.VFXType` 对齐，存英文 code）。"""
+    """视效类型（与 `app.schemas.skills.common.VFXType` 对齐，存英文 code）。"""
 
     none = "NONE"  # 无
     particles = "PARTICLES"  # 粒子

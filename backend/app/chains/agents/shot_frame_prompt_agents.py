@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.core.skills_runtime import SKILL_REGISTRY
-from app.core.skills_runtime.shot_frame_prompt_generator import ShotFramePromptResult
-from app.chains.agents.base import SkillAgentBase, _extract_json_from_text
+from langchain_core.prompts import PromptTemplate
+
+from app.chains.agents.base import AgentBase, _extract_json_from_text
+from app.schemas.skills.shot_frame_prompt import ShotFramePromptResult
 
 
 def _prepare_shot_frame_input(input_dict: dict[str, Any]) -> dict[str, Any]:
@@ -24,20 +25,104 @@ def _prepare_shot_frame_input(input_dict: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-class ShotFirstFramePromptAgent(SkillAgentBase[ShotFramePromptResult]):
+_SHOT_FRAME_INPUT_VARS = [
+    "script_excerpt",
+    "title",
+    "camera_shot",
+    "angle",
+    "movement",
+    "atmosphere",
+    "mood_tags",
+    "vfx_type",
+    "vfx_note",
+    "duration",
+    "scene_id",
+    "dialog_summary",
+]
+
+_FIRST_FRAME_TEMPLATE = """你是一名分镜师。根据下列镜头信息，生成该镜头的**首帧**画面描述提示词（用于图像生成模型）。
+要求：一句或几句简洁、可视化的中文描述（不得使用英文），涵盖画面主体、景别、氛围、关键动作或状态。
+专有名词一致性规则：
+- 剧本摘录（script_excerpt）中出现的角色名/场景名/道具名等专有名词，必须在输出中**原样保留**，不得翻译、不得替换为同义词或其他说法。
+- 除了需要补全画面描述以外，不要对专有名词进行改写。
+只输出一个 JSON 对象：{{"prompt": "你的提示词内容"}}，不要其他文字。
+
+## 镜头信息
+剧本摘录：{script_excerpt}
+镜头标题：{title}
+景别：{camera_shot}
+机位角度：{angle}
+运镜：{movement}
+氛围：{atmosphere}
+情绪标签：{mood_tags}
+视效：{vfx_type} - {vfx_note}
+时长：{duration}秒
+对白摘要：{dialog_summary}
+
+## 输出（仅首帧提示词，JSON：{{"prompt": "..."}}）
+"""
+
+_LAST_FRAME_TEMPLATE = """你是一名分镜师。根据下列镜头信息，生成该镜头的**尾帧**画面描述提示词（用于图像生成模型）。
+要求：一句或几句简洁、可视化的中文描述（不得使用英文），描述镜头结束时的画面状态。
+专有名词一致性规则：
+- 剧本摘录（script_excerpt）中出现的角色名/场景名/道具名等专有名词，必须在输出中**原样保留**，不得翻译、不得替换为同义词或其他说法。
+- 除了需要补全画面描述以外，不要对专有名词进行改写。
+只输出一个 JSON 对象：{{"prompt": "你的提示词内容"}}，不要其他文字。
+
+## 镜头信息
+剧本摘录：{script_excerpt}
+镜头标题：{title}
+景别：{camera_shot}
+机位角度：{angle}
+运镜：{movement}
+氛围：{atmosphere}
+情绪标签：{mood_tags}
+视效：{vfx_type} - {vfx_note}
+时长：{duration}秒
+对白摘要：{dialog_summary}
+
+## 输出（仅尾帧提示词，JSON：{{"prompt": "..."}}）
+"""
+
+_KEY_FRAME_TEMPLATE = """你是一名分镜师。根据下列镜头信息，生成该镜头的**关键帧**画面描述提示词（用于图像生成模型）。
+要求：一句或几句简洁、可视化的中文描述（不得使用英文），捕捉该镜头中最具代表性的瞬间画面。
+专有名词一致性规则：
+- 剧本摘录（script_excerpt）中出现的角色名/场景名/道具名等专有名词，必须在输出中**原样保留**，不得翻译、不得替换为同义词或其他说法。
+- 除了需要补全画面描述以外，不要对专有名词进行改写。
+只输出一个 JSON 对象：{{"prompt": "你的提示词内容"}}，不要其他文字。
+
+## 镜头信息
+剧本摘录：{script_excerpt}
+镜头标题：{title}
+景别：{camera_shot}
+机位角度：{angle}
+运镜：{movement}
+氛围：{atmosphere}
+情绪标签：{mood_tags}
+视效：{vfx_type} - {vfx_note}
+时长：{duration}秒
+对白摘要：{dialog_summary}
+
+## 输出（仅关键帧提示词，JSON：{{"prompt": "..."}}）
+"""
+
+SHOT_FIRST_FRAME_PROMPT = PromptTemplate(input_variables=_SHOT_FRAME_INPUT_VARS, template=_FIRST_FRAME_TEMPLATE)
+SHOT_LAST_FRAME_PROMPT = PromptTemplate(input_variables=_SHOT_FRAME_INPUT_VARS, template=_LAST_FRAME_TEMPLATE)
+SHOT_KEY_FRAME_PROMPT = PromptTemplate(input_variables=_SHOT_FRAME_INPUT_VARS, template=_KEY_FRAME_TEMPLATE)
+
+
+class ShotFirstFramePromptAgent(AgentBase[ShotFramePromptResult]):
     """镜头首帧提示词生成 Agent，输出可写入 ShotDetail.first_frame_prompt。"""
 
-    SKILL_ID = "shot_first_frame_prompt"
+    @property
+    def prompt_template(self) -> PromptTemplate:
+        return SHOT_FIRST_FRAME_PROMPT
 
-    def load_skill(self, skill_id: str = "shot_first_frame_prompt") -> None:
-        if skill_id not in (self.SKILL_ID,) or skill_id not in SKILL_REGISTRY:
-            raise ValueError(f"Invalid skill_id: {skill_id}. Allowed: ({self.SKILL_ID},)")
-        self._prompt, self._output_model = SKILL_REGISTRY[skill_id]
-        self._skill_id = skill_id
-        self._structured_chain = None
+    @property
+    def output_model(self) -> type[ShotFramePromptResult]:
+        return ShotFramePromptResult
 
     def format_output(self, raw: str) -> ShotFramePromptResult:
-        self._ensure_loaded()
         json_str = _extract_json_from_text(raw)
         try:
             data = json.loads(json_str)
@@ -47,31 +132,29 @@ class ShotFirstFramePromptAgent(SkillAgentBase[ShotFramePromptResult]):
             return ShotFramePromptResult(prompt=str(data["prompt"]).strip())
         return ShotFramePromptResult(prompt=raw.strip())
 
-    def extract(self, input_dict: dict[str, Any]) -> ShotFramePromptResult:
-        inp = _prepare_shot_frame_input(input_dict)
-        raw = self.run(inp)
+    def extract(self, **kwargs: Any) -> ShotFramePromptResult:
+        inp = _prepare_shot_frame_input(kwargs)
+        raw = self.run(**inp)
         return self.format_output(raw)
 
-    async def aextract(self, input_dict: dict[str, Any]) -> ShotFramePromptResult:
-        inp = _prepare_shot_frame_input(input_dict)
-        raw = await self.arun(inp)
+    async def aextract(self, **kwargs: Any) -> ShotFramePromptResult:
+        inp = _prepare_shot_frame_input(kwargs)
+        raw = await self.arun(**inp)
         return self.format_output(raw)
 
 
-class ShotLastFramePromptAgent(SkillAgentBase[ShotFramePromptResult]):
+class ShotLastFramePromptAgent(AgentBase[ShotFramePromptResult]):
     """镜头尾帧提示词生成 Agent，输出可写入 ShotDetail.last_frame_prompt。"""
 
-    SKILL_ID = "shot_last_frame_prompt"
+    @property
+    def prompt_template(self) -> PromptTemplate:
+        return SHOT_LAST_FRAME_PROMPT
 
-    def load_skill(self, skill_id: str = "shot_last_frame_prompt") -> None:
-        if skill_id not in (self.SKILL_ID,) or skill_id not in SKILL_REGISTRY:
-            raise ValueError(f"Invalid skill_id: {skill_id}. Allowed: ({self.SKILL_ID},)")
-        self._prompt, self._output_model = SKILL_REGISTRY[skill_id]
-        self._skill_id = skill_id
-        self._structured_chain = None
+    @property
+    def output_model(self) -> type[ShotFramePromptResult]:
+        return ShotFramePromptResult
 
     def format_output(self, raw: str) -> ShotFramePromptResult:
-        self._ensure_loaded()
         json_str = _extract_json_from_text(raw)
         try:
             data = json.loads(json_str)
@@ -81,31 +164,29 @@ class ShotLastFramePromptAgent(SkillAgentBase[ShotFramePromptResult]):
             return ShotFramePromptResult(prompt=str(data["prompt"]).strip())
         return ShotFramePromptResult(prompt=raw.strip())
 
-    def extract(self, input_dict: dict[str, Any]) -> ShotFramePromptResult:
-        inp = _prepare_shot_frame_input(input_dict)
-        raw = self.run(inp)
+    def extract(self, **kwargs: Any) -> ShotFramePromptResult:
+        inp = _prepare_shot_frame_input(kwargs)
+        raw = self.run(**inp)
         return self.format_output(raw)
 
-    async def aextract(self, input_dict: dict[str, Any]) -> ShotFramePromptResult:
-        inp = _prepare_shot_frame_input(input_dict)
-        raw = await self.arun(inp)
+    async def aextract(self, **kwargs: Any) -> ShotFramePromptResult:
+        inp = _prepare_shot_frame_input(kwargs)
+        raw = await self.arun(**inp)
         return self.format_output(raw)
 
 
-class ShotKeyFramePromptAgent(SkillAgentBase[ShotFramePromptResult]):
+class ShotKeyFramePromptAgent(AgentBase[ShotFramePromptResult]):
     """镜头关键帧提示词生成 Agent，输出可写入 ShotDetail.key_frame_prompt。"""
 
-    SKILL_ID = "shot_key_frame_prompt"
+    @property
+    def prompt_template(self) -> PromptTemplate:
+        return SHOT_KEY_FRAME_PROMPT
 
-    def load_skill(self, skill_id: str = "shot_key_frame_prompt") -> None:
-        if skill_id not in (self.SKILL_ID,) or skill_id not in SKILL_REGISTRY:
-            raise ValueError(f"Invalid skill_id: {skill_id}. Allowed: ({self.SKILL_ID},)")
-        self._prompt, self._output_model = SKILL_REGISTRY[skill_id]
-        self._skill_id = skill_id
-        self._structured_chain = None
+    @property
+    def output_model(self) -> type[ShotFramePromptResult]:
+        return ShotFramePromptResult
 
     def format_output(self, raw: str) -> ShotFramePromptResult:
-        self._ensure_loaded()
         json_str = _extract_json_from_text(raw)
         try:
             data = json.loads(json_str)
@@ -115,12 +196,12 @@ class ShotKeyFramePromptAgent(SkillAgentBase[ShotFramePromptResult]):
             return ShotFramePromptResult(prompt=str(data["prompt"]).strip())
         return ShotFramePromptResult(prompt=raw.strip())
 
-    def extract(self, input_dict: dict[str, Any]) -> ShotFramePromptResult:
-        inp = _prepare_shot_frame_input(input_dict)
-        raw = self.run(inp)
+    def extract(self, **kwargs: Any) -> ShotFramePromptResult:
+        inp = _prepare_shot_frame_input(kwargs)
+        raw = self.run(**inp)
         return self.format_output(raw)
 
-    async def aextract(self, input_dict: dict[str, Any]) -> ShotFramePromptResult:
-        inp = _prepare_shot_frame_input(input_dict)
-        raw = await self.arun(inp)
+    async def aextract(self, **kwargs: Any) -> ShotFramePromptResult:
+        inp = _prepare_shot_frame_input(kwargs)
+        raw = await self.arun(**inp)
         return self.format_output(raw)

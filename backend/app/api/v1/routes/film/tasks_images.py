@@ -45,7 +45,6 @@ async def create_shot_frame_prompt_task(
     frame_type = (body.frame_type or "").strip().lower()
     if frame_type not in {"first", "last", "key"}:
         raise HTTPException(status_code=400, detail="frame_type must be one of first/last/key")
-    skill_id = f"shot_{frame_type}_frame_prompt" if frame_type in {"first", "last"} else "shot_key_frame_prompt"
     if frame_type == "first":
         relation_type = "shot_first_frame_prompt"
     elif frame_type == "last":
@@ -88,7 +87,6 @@ async def create_shot_frame_prompt_task(
     run_args: dict = {
         "shot_id": body.shot_id,
         "frame_type": frame_type,
-        "skill_id": skill_id,
         "input": input_dict,
     }
 
@@ -111,7 +109,6 @@ async def create_shot_frame_prompt_task(
                 await session.commit()
 
                 ft = str(args.get("frame_type") or "")
-                sid = str(args.get("skill_id") or "")
                 shot_id = str(args.get("shot_id") or "")
                 inp = dict(args.get("input") or {})
 
@@ -121,8 +118,7 @@ async def create_shot_frame_prompt_task(
                     agent = ShotLastFramePromptAgent(llm)
                 else:
                     agent = ShotKeyFramePromptAgent(llm)
-                agent.load_skill(sid)
-                result = await agent.aextract(inp)
+                result = await agent.aextract(**inp)
 
                 if not shot_id:
                     raise RuntimeError("Missing shot_id in run args")

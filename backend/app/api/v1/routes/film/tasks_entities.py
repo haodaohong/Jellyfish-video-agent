@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from langchain_core.runnables import Runnable
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.chains.agents import FilmEntityExtractor, FilmShotlistStoryboarder
+from app.chains.agents import FilmEntityExtractorAgent, FilmShotlistStoryboarderAgent
 from app.core.db import async_session_maker
 from app.core.task_manager import DeliveryMode, SqlAlchemyTaskStore, TaskManager
 from app.core.task_manager.types import TaskStatus
@@ -65,9 +65,8 @@ async def create_entity_extract_task(
                 store2 = SqlAlchemyTaskStore(session)
                 await store2.set_status(task_id, TaskStatus.running)
                 await store2.set_progress(task_id, 10)
-                extractor = FilmEntityExtractor(llm)
-                extractor.load_skill("film_entity_extractor")
-                result = await extractor.aextract(input_dict)
+                extractor = FilmEntityExtractorAgent(llm)
+                result = await extractor.aextract(**input_dict)
                 await store2.set_result(task_id, result.model_dump())
                 await store2.set_progress(task_id, 100)
                 await store2.set_status(task_id, TaskStatus.succeeded)
@@ -132,9 +131,8 @@ async def create_shotlist_task(
                 store2 = SqlAlchemyTaskStore(session)
                 await store2.set_status(task_id, TaskStatus.running)
                 await store2.set_progress(task_id, 10)
-                storyboarder = FilmShotlistStoryboarder(llm)
-                storyboarder.load_skill("film_shotlist")
-                result = await storyboarder.aextract(input_dict)
+                storyboarder = FilmShotlistStoryboarderAgent(llm)
+                result = await storyboarder.aextract(**input_dict)
                 await store2.set_result(task_id, result.model_dump())
                 await store2.set_progress(task_id, 100)
                 await store2.set_status(task_id, TaskStatus.succeeded)

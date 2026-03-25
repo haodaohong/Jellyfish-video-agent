@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.skills_runtime.schemas import StudioScriptExtractionDraft
+from app.schemas.skills.script_processing import StudioScriptExtractionDraft
 from app.dependencies import get_db
 from app.models.studio import (
     Actor,

@@ -1,7 +1,7 @@
 """Skill 加载与 Agent 运行：通用基类与提取类/提示词类 agent。"""
 
-from app.chains.agents.base import SkillAgentBase, STRUCTURED_OUTPUT_METHOD
-from app.chains.agents.extra_agents import FilmEntityExtractor, FilmShotlistStoryboarder
+from app.chains.agents.base import AgentBase, STRUCTURED_OUTPUT_METHOD
+from app.chains.agents.extra_agents import FilmEntityExtractorAgent, FilmShotlistStoryboarderAgent
 from app.chains.agents.shot_frame_prompt_agents import (
     ShotFirstFramePromptAgent,
     ShotLastFramePromptAgent,
@@ -19,10 +19,10 @@ from app.chains.agents.script_processing_agents import (
 )
 
 __all__ = [
-    "SkillAgentBase",
+    "AgentBase",
     "STRUCTURED_OUTPUT_METHOD",
-    "FilmEntityExtractor",
-    "FilmShotlistStoryboarder",
+    "FilmEntityExtractorAgent",
+    "FilmShotlistStoryboarderAgent",
     "ShotFirstFramePromptAgent",
     "ShotLastFramePromptAgent",
     "ShotKeyFramePromptAgent",

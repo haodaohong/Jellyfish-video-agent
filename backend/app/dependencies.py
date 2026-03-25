@@ -3,6 +3,7 @@
 from collections.abc import AsyncGenerator
 
 from fastapi import HTTPException
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.runnables import Runnable
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +24,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-def get_llm() -> Runnable:
+def get_llm() -> BaseChatModel:
     """提供 LLM（ChatOpenAI），用于影视技能抽取。未配置 OPENAI_API_KEY 时抛出 503。"""
     if not settings.openai_api_key:
         raise HTTPException(

@@ -121,7 +121,7 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ### 单元测试与集成测试（Mock）
 
-- **单元测试**：`tests/test_skills_runtime_runners.py`，对 `app.chains.agents` 下 `FilmEntityExtractor` / `FilmShotlistStoryboarder` 的 load_skill、run、format_output、extract 等行为做断言，使用 Mock Agent，无需网络与 API Key。
+- **单元测试**：`tests/test_skills_runtime_runners.py`，对 `app.chains.agents` 下 `FilmEntityExtractorAgent` / `FilmShotlistStoryboarderAgent` 的 run、format_output、extract 等行为做断言，使用 Mock Agent，无需网络与 API Key。
 - **集成测试（Mock）**：`tests/test_skills_integration.py` 中的 `TestAppIntegration`、`TestSkillsPipelineIntegration`，覆盖 FastAPI 健康检查、示例路由、以及技能完整链路（真实 Prompt + Mock Agent + 真实解析）。
 
 ```bash

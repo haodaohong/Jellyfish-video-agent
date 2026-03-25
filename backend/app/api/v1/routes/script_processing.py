@@ -7,7 +7,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from langchain_core.runnables import Runnable
+from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel, Field
 
 from app.chains.agents import (
@@ -59,7 +59,7 @@ class ScriptDividerRequest(BaseModel):
 )
 async def divide_script(
     request: ScriptDividerRequest,
-    llm: Runnable = Depends(get_llm),
+    llm: BaseChatModel = Depends(get_llm),
 ) -> ApiResponse[ScriptDivisionResult]:
     """
     将完整剧本文本自动分割为多个镜头。
@@ -74,9 +74,7 @@ async def divide_script(
     """
     try:
         agent = ScriptDividerAgent(llm)
-        agent.load_skill("script_divider")
-        
-        result = agent.extract({"script_text": request.script_text})
+        result = agent.divide_script(script_text=request.script_text)
         return success_response(data=result)
     except Exception as e:
         logger.error(f"Script dividing failed: {e}")
@@ -112,7 +110,7 @@ class ShotElementExtractionRequest(BaseModel):
 )
 async def extract_shot_elements(
     request: ShotElementExtractionRequest,
-    llm: Runnable = Depends(get_llm),
+    llm: BaseChatModel = Depends(get_llm),
 ) -> ApiResponse[ShotElementExtractionResult]:
     """
     从单个镜头的文本中提取关键信息。
@@ -136,14 +134,12 @@ async def extract_shot_elements(
     """
     try:
         agent = ShotElementExtractorAgent(llm)
-        agent.load_skill("shot_element_extractor")
-        
-        result = agent.extract({
-            "index": request.index,
-            "shot_text": request.shot_text,
-            "context_summary": request.context_summary or "",
-            "shot_division_json": json.dumps(request.shot_division or {}, ensure_ascii=False),
-        })
+        result = agent.extract(
+            index=request.index,
+            shot_text=request.shot_text,
+            context_summary=request.context_summary or "",
+            shot_division_json=json.dumps(request.shot_division or {}, ensure_ascii=False),
+        )
         return success_response(data=result)
     except Exception as e:
         logger.error(f"Element extraction failed: {e}")
@@ -194,7 +190,7 @@ class EntityMergerRequest(BaseModel):
 )
 async def merge_entities(
     request: EntityMergerRequest,
-    llm: Runnable = Depends(get_llm),
+    llm: BaseChatModel = Depends(get_llm),
 ) -> ApiResponse[EntityMergeResult]:
     """
     将多个镜头的提取结果合并，统一实体定义。
@@ -214,15 +210,13 @@ async def merge_entities(
     """
     try:
         agent = EntityMergerAgent(llm)
-        agent.load_skill("entity_merger")
-        
-        result = agent.extract({
-            "all_extractions_json": json.dumps(request.all_shot_extractions, ensure_ascii=False),
-            "historical_library_json": json.dumps(request.historical_library or {}, ensure_ascii=False),
-            "script_division_json": json.dumps(request.script_division or {}, ensure_ascii=False),
-            "previous_merge_json": json.dumps(request.previous_merge or {}, ensure_ascii=False),
-            "conflict_resolutions_json": json.dumps(request.conflict_resolutions or [], ensure_ascii=False),
-        })
+        result = agent.extract(
+            all_extractions_json=json.dumps(request.all_shot_extractions, ensure_ascii=False),
+            historical_library_json=json.dumps(request.historical_library or {}, ensure_ascii=False),
+            script_division_json=json.dumps(request.script_division or {}, ensure_ascii=False),
+            previous_merge_json=json.dumps(request.previous_merge or {}, ensure_ascii=False),
+            conflict_resolutions_json=json.dumps(request.conflict_resolutions or [], ensure_ascii=False),
+        )
         return success_response(data=result)
     except Exception as e:
         logger.error(f"Entity merging failed: {e}")
@@ -260,7 +254,7 @@ class VariantAnalysisRequest(BaseModel):
 )
 async def analyze_variants(
     request: VariantAnalysisRequest,
-    llm: Runnable = Depends(get_llm),
+    llm: BaseChatModel = Depends(get_llm),
 ) -> ApiResponse[VariantAnalysisResult]:
     """
     分析实体的变体（特别是角色服装变化）。
@@ -278,13 +272,11 @@ async def analyze_variants(
     """
     try:
         agent = VariantAnalyzerAgent(llm)
-        agent.load_skill("variant_analyzer")
-        
-        result = agent.extract({
-            "merged_library_json": json.dumps(request.merged_library, ensure_ascii=False),
-            "all_extractions_json": json.dumps(request.all_shot_extractions, ensure_ascii=False),
-            "script_division_json": json.dumps(request.script_division or {}, ensure_ascii=False),
-        })
+        result = agent.extract(
+            merged_library_json=json.dumps(request.merged_library, ensure_ascii=False),
+            all_extractions_json=json.dumps(request.all_shot_extractions, ensure_ascii=False),
+            script_division_json=json.dumps(request.script_division or {}, ensure_ascii=False),
+        )
         return success_response(data=result)
     except Exception as e:
         logger.error(f"Variant analysis failed: {e}")
@@ -311,7 +303,7 @@ class ScriptConsistencyCheckRequest(BaseModel):
 )
 async def check_consistency(
     request: ScriptConsistencyCheckRequest,
-    llm: Runnable = Depends(get_llm),
+    llm: BaseChatModel = Depends(get_llm),
 ) -> ApiResponse[ScriptConsistencyCheckResult]:
     """
     检查实体定义与分镜内容的一致性。
@@ -326,11 +318,7 @@ async def check_consistency(
     """
     try:
         agent = ConsistencyCheckerAgent(llm)
-        agent.load_skill("consistency_checker")
-        
-        result = agent.extract({
-            "script_text": request.script_text,
-        })
+        result = agent.extract(script_text=request.script_text)
         return success_response(data=result)
     except Exception as e:
         logger.error(f"Consistency checking failed: {e}")
@@ -358,19 +346,17 @@ class ScriptOptimizeRequest(BaseModel):
 )
 async def optimize_script(
     request: ScriptOptimizeRequest,
-    llm: Runnable = Depends(get_llm),
+    llm: BaseChatModel = Depends(get_llm),
 ) -> ApiResponse[ScriptOptimizationResult]:
     """
     输入原文 + 一致性检查输出，生成优化后的剧本。
     """
     try:
         agent = ScriptOptimizerAgent(llm)
-        agent.load_skill("script_optimizer")
-        
-        result = agent.extract({
-            "script_text": request.script_text,
-            "consistency_json": json.dumps(request.consistency, ensure_ascii=False),
-        })
+        result = agent.extract(
+            script_text=request.script_text,
+            consistency_json=json.dumps(request.consistency, ensure_ascii=False),
+        )
         return success_response(data=result)
     except Exception as e:
         logger.error(f"Script optimization failed: {e}")
@@ -401,19 +387,16 @@ class ScriptExtractRequest(BaseModel):
 )
 async def extract_script(
     request: ScriptExtractRequest,
-    llm: Runnable = Depends(get_llm),
+    llm: BaseChatModel = Depends(get_llm),
 ) -> ApiResponse[StudioScriptExtractionDraft]:
     try:
         agent = ElementExtractorAgent(llm)
-        agent.load_skill("script_extractor")
         result = agent.extract(
-            {
-                "project_id": request.project_id,
-                "chapter_id": request.chapter_id,
-                "script_text": request.script_text,
-                "script_division_json": json.dumps(request.script_division, ensure_ascii=False),
-                "consistency_json": json.dumps(request.consistency or {}, ensure_ascii=False),
-            }
+            project_id=request.project_id,
+            chapter_id=request.chapter_id,
+            script_text=request.script_text,
+            script_division_json=json.dumps(request.script_division, ensure_ascii=False),
+            consistency_json=json.dumps(request.consistency or {}, ensure_ascii=False),
         )
         return success_response(data=result)
     except Exception as e:
@@ -444,7 +427,7 @@ class FullProcessRequest(BaseModel):
 )
 async def full_process(
     request: FullProcessRequest,
-    llm: Runnable = Depends(get_llm),
+    llm: BaseChatModel = Depends(get_llm),
 ) -> ApiResponse[StudioScriptExtractionDraft]:
     """
     完整的脚本处理工作流（新流程）：
@@ -462,20 +445,16 @@ async def full_process(
         # 1. 一致性检查
         logger.info("Step 1: Consistency check (character confusion)...")
         checker = ConsistencyCheckerAgent(llm)
-        checker.load_skill("consistency_checker")
-        consistency = checker.extract({"script_text": request.script_text})
+        consistency = checker.extract(script_text=request.script_text)
 
         # 2. 可选优化
         script_text = request.script_text
         if request.auto_optimize and consistency.has_issues:
             logger.info("Step 2: Optimizing script...")
             optimizer = ScriptOptimizerAgent(llm)
-            optimizer.load_skill("script_optimizer")
             optimized = optimizer.extract(
-                {
-                    "script_text": request.script_text,
-                    "consistency_json": json.dumps(consistency.model_dump(), ensure_ascii=False),
-                }
+                script_text=request.script_text,
+                consistency_json=json.dumps(consistency.model_dump(), ensure_ascii=False),
             )
             if optimized.optimized_script_text.strip():
                 script_text = optimized.optimized_script_text
@@ -483,21 +462,17 @@ async def full_process(
         # 3. 分镜
         logger.info("Step 3: Dividing script...")
         divider = ScriptDividerAgent(llm)
-        divider.load_skill("script_divider")
-        division = divider.extract({"script_text": script_text})
+        division = divider.divide_script(script_text=script_text)
 
         # 4. 项目级提取（最终输出）
         logger.info("Step 4: Project-level extraction...")
         extractor = ElementExtractorAgent(llm)
-        extractor.load_skill("script_extractor")
         final_result = extractor.extract(
-            {
-                "project_id": request.project_id,
-                "chapter_id": request.chapter_id,
-                "script_text": script_text,
-                "script_division_json": json.dumps(division.model_dump(), ensure_ascii=False),
-                "consistency_json": json.dumps(consistency.model_dump(), ensure_ascii=False),
-            }
+            project_id=request.project_id,
+            chapter_id=request.chapter_id,
+            script_text=script_text,
+            script_division_json=json.dumps(division.model_dump(), ensure_ascii=False),
+            consistency_json=json.dumps(consistency.model_dump(), ensure_ascii=False),
         )
         logger.info("Full process completed successfully")
         return success_response(data=final_result)
