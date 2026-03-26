@@ -12,8 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import storage
 from app.core.tasks import ProviderConfig
-from app.models.llm import Model, ModelCategoryKey, ModelSettings, Provider
+from app.models.llm import Model, ModelCategoryKey
 from app.models.studio import AssetViewAngle, FileItem, PromptCategory, PromptTemplate, ShotFrameType
+from app.services.llm import get_model_by_category, get_provider_by_id_or_obj
 
 
 def provider_key_from_db_name(name: str) -> str:
@@ -32,39 +33,45 @@ def provider_key_from_db_name(name: str) -> str:
 
 async def resolve_image_model(db: AsyncSession, model_id: str | None) -> Model:
     """根据显式 model_id 或默认图片模型解析 Model。"""
-    effective_model_id = model_id
-    if not effective_model_id:
-        settings_row = await db.get(ModelSettings, 1)
-        effective_model_id = settings_row.default_image_model_id if settings_row else None
-
-    if not effective_model_id:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No image model configured in DB (missing explicit model_id and ModelSettings.default_image_model_id)",
+    try:
+        return await get_model_by_category(
+            db,
+            ModelCategoryKey.image,
+            model_or_id=model_id,
+            allow_default_fallback=False,
         )
-
-    model = await db.get(Model, effective_model_id)
-    if model is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Configured model_id not found in DB: {effective_model_id}",
-        )
-    if model.category != ModelCategoryKey.image:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Configured model is not an image model: {effective_model_id} (category={model.category})",
-        )
-    return model
+    except HTTPException as e:
+        if e.status_code == status.HTTP_404_NOT_FOUND and model_id:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Configured model_id not found in DB: {model_id}",
+            ) from e
+        if e.status_code == status.HTTP_503_SERVICE_UNAVAILABLE and not model_id:
+            # 保持既有行为：未传 model_id 时，仅允许读取 ModelSettings.default_image_model_id。
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="No image model configured in DB (missing explicit model_id and ModelSettings.default_image_model_id)",
+            ) from e
+        if e.status_code == status.HTTP_503_SERVICE_UNAVAILABLE and model_id:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Configured model is not an image model: {model_id}",
+            ) from e
+        raise
 
 
 async def load_provider_config(db: AsyncSession, provider_id: str) -> ProviderConfig:
     """根据 provider_id 从 DB 解析 ProviderConfig。"""
-    provider = await db.get(Provider, provider_id)
-    if provider is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Provider not found for provider_id={provider_id}",
-        )
+    try:
+        provider = await get_provider_by_id_or_obj(db, provider_id)
+    except HTTPException as e:
+        if e.status_code == status.HTTP_404_NOT_FOUND:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Provider not found for provider_id={provider_id}",
+            ) from e
+        raise
+
     try:
         provider_key = provider_key_from_db_name(provider.name)
     except HTTPException as e:
