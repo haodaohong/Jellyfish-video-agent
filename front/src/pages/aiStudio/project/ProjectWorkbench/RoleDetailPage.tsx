@@ -51,10 +51,21 @@ export default function RoleDetailPage() {
       updateImage={async (id, imageId, payload) => {
         await StudioEntitiesApi.updateImage('character', id, imageId, normalizeUpdateImagePayload(payload))
       }}
-      createGenerationTask={async (id, imageId) => {
-        const res = await StudioImageTasksService.createCharacterImageGenerationTaskApiV1StudioImageTasksCharactersCharacterIdImageTasksPost({
+      renderPrompt={async (id, imageId) => {
+        const res = await StudioImageTasksService.renderCharacterImagePromptApiV1StudioImageTasksCharactersCharacterIdRenderPromptPost({
           characterId: id,
           requestBody: { image_id: imageId, model_id: null },
+        })
+        const data = res.data
+        return {
+          prompt: (data?.prompt ?? '') as string,
+          images: (data?.images ?? []) as string[],
+        }
+      }}
+      createGenerationTask={async (id, imageId, payload) => {
+        const res = await StudioImageTasksService.createCharacterImageGenerationTaskApiV1StudioImageTasksCharactersCharacterIdImageTasksPost({
+          characterId: id,
+          requestBody: { image_id: imageId, model_id: null, prompt: payload.prompt, images: payload.images } as any,
         })
         return res.data?.task_id ?? null
       }}

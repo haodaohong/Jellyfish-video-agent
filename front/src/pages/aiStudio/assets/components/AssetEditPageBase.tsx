@@ -5,6 +5,7 @@ import {
   Col,
   Collapse,
   Empty,
+  Image,
   Input,
   InputNumber,
   Modal,
@@ -80,7 +81,8 @@ export type AssetEditPageBaseProps<TAsset extends BaseAsset, TImage extends Base
   listImages: (assetId: string) => Promise<TImage[]>
   createImageSlot: (assetId: string, angle: AssetViewAngle) => Promise<void>
   updateImage: (assetId: string, imageId: number, payload: { file_id: string; width?: number | null; height?: number | null; format?: string | null }) => Promise<void>
-  createGenerationTask: (assetId: string, imageId: number) => Promise<string | null>
+  renderPrompt: (assetId: string, imageId: number) => Promise<{ prompt: string; images: string[] }>
+  createGenerationTask: (assetId: string, imageId: number, payload: { prompt: string; images: string[] }) => Promise<string | null>
   onNavigate: (to: string, replace?: boolean) => void
 }
 
@@ -126,6 +128,7 @@ export function AssetEditPageBase<TAsset extends BaseAsset, TImage extends BaseA
   listImages,
   createImageSlot,
   updateImage,
+  renderPrompt,
   createGenerationTask,
   onNavigate,
 }: AssetEditPageBaseProps<TAsset, TImage>) {
@@ -140,6 +143,12 @@ export function AssetEditPageBase<TAsset extends BaseAsset, TImage extends BaseA
   const [savingBase, setSavingBase] = useState(false)
 
   const [generatingByImageId, setGeneratingByImageId] = useState<Record<number, boolean>>({})
+
+  const [promptPreviewOpen, setPromptPreviewOpen] = useState(false)
+  const [promptPreviewLoading, setPromptPreviewLoading] = useState(false)
+  const [promptPreviewImage, setPromptPreviewImage] = useState<TImage | null>(null)
+  const [promptPreviewDraft, setPromptPreviewDraft] = useState('')
+  const [promptPreviewRefFileIds, setPromptPreviewRefFileIds] = useState<string[]>([])
 
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
@@ -255,12 +264,37 @@ export function AssetEditPageBase<TAsset extends BaseAsset, TImage extends BaseA
     }
   }
 
-  const handleGenerate = async (image: TImage) => {
+  const openPromptPreview = async (image: TImage) => {
     if (!assetId) return
 
-    setGeneratingByImageId((prev) => ({ ...prev, [image.id]: true }))
     try {
-      const taskId = await createGenerationTask(assetId, image.id)
+      setPromptPreviewOpen(true)
+      setPromptPreviewLoading(true)
+      setPromptPreviewImage(image)
+      const res = await renderPrompt(assetId, image.id)
+      setPromptPreviewDraft(res.prompt ?? '')
+      setPromptPreviewRefFileIds(Array.isArray(res.images) ? res.images.filter(Boolean) : [])
+    } catch {
+      message.error('获取提示词失败')
+    } finally {
+      setPromptPreviewLoading(false)
+    }
+  }
+
+  const confirmGenerateWithPrompt = async () => {
+    if (!assetId || !promptPreviewImage) return
+    const prompt = (promptPreviewDraft || '').trim()
+    if (!prompt) {
+      message.warning('请输入提示词')
+      return
+    }
+
+    setGeneratingByImageId((prev) => ({ ...prev, [promptPreviewImage.id]: true }))
+    try {
+      const taskId = await createGenerationTask(assetId, promptPreviewImage.id, {
+        prompt,
+        images: promptPreviewRefFileIds,
+      })
       if (!taskId) {
         message.error('生成任务创建失败：缺少任务 ID')
         return
@@ -278,6 +312,8 @@ export function AssetEditPageBase<TAsset extends BaseAsset, TImage extends BaseA
 
       if (finalStatus === 'succeeded') {
         message.success('生成完成')
+        setPromptPreviewOpen(false)
+        setPromptPreviewImage(null)
         await loadData()
       } else if (finalStatus === 'failed' || finalStatus === 'cancelled') {
         message.error('生成任务失败')
@@ -287,7 +323,7 @@ export function AssetEditPageBase<TAsset extends BaseAsset, TImage extends BaseA
     } catch {
       message.error('发起生成失败')
     } finally {
-      setGeneratingByImageId((prev) => ({ ...prev, [image.id]: false }))
+      setGeneratingByImageId((prev) => ({ ...prev, [promptPreviewImage.id]: false }))
     }
   }
 
@@ -459,7 +495,7 @@ export function AssetEditPageBase<TAsset extends BaseAsset, TImage extends BaseA
                             size="small"
                             disabled={!slot.image}
                             loading={Boolean(slot.image && generatingByImageId[slot.image.id])}
-                            onClick={() => slot.image && void handleGenerate(slot.image)}
+                            onClick={() => slot.image && void openPromptPreview(slot.image)}
                           >
                             生成
                           </Button>
@@ -526,6 +562,59 @@ export function AssetEditPageBase<TAsset extends BaseAsset, TImage extends BaseA
               </Col>
             ))}
           </Row>
+        )}
+      </Modal>
+
+      <Modal
+        title="提示词内容预览"
+        open={promptPreviewOpen}
+        onCancel={() => {
+          setPromptPreviewOpen(false)
+          setPromptPreviewImage(null)
+        }}
+        okText="生成"
+        cancelText="取消"
+        confirmLoading={Boolean(promptPreviewImage && generatingByImageId[promptPreviewImage.id])}
+        onOk={() => void confirmGenerateWithPrompt()}
+        destroyOnClose
+        width={900}
+      >
+        {promptPreviewLoading ? (
+          <div className="py-8 text-center">
+            <Spin />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs text-gray-500 mb-2">关联图片（参考图）</div>
+              {promptPreviewRefFileIds.length === 0 ? (
+                <div className="text-xs text-gray-400">暂无关联图片</div>
+              ) : (
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  <Image.PreviewGroup>
+                    {promptPreviewRefFileIds.map((fid) => (
+                      <Image
+                        key={fid}
+                        width={72}
+                        height={72}
+                        style={{ objectFit: 'cover', borderRadius: 8 }}
+                        src={buildFileDownloadUrl(fid)}
+                      />
+                    ))}
+                  </Image.PreviewGroup>
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 mb-2">提示词（可编辑）</div>
+              <Input.TextArea
+                rows={10}
+                value={promptPreviewDraft}
+                onChange={(e) => setPromptPreviewDraft(e.target.value)}
+                placeholder="请输入提示词…"
+              />
+            </div>
+          </div>
         )}
       </Modal>
     </div>

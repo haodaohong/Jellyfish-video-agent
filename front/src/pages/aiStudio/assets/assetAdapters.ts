@@ -45,10 +45,21 @@ export const assetAdapters = {
     updateImage: async (id: string, imageId: number, payload) => {
       await StudioEntitiesApi.updateImage('actor', id, imageId, normalizeUpdateImagePayload(payload))
     },
-    createGenerationTask: async (id: string, imageId: number) => {
+    renderPrompt: async (id: string, imageId: number) => {
+      const res = await StudioImageTasksService.renderActorImagePromptApiV1StudioImageTasksActorsActorIdRenderPromptPost({
+        actorId: id,
+        requestBody: { image_id: imageId, model_id: null } as any,
+      })
+      const data = res.data
+      return {
+        prompt: (data?.prompt ?? '') as string,
+        images: (data?.images ?? []) as string[],
+      }
+    },
+    createGenerationTask: async (id: string, imageId: number, payload: { prompt: string; images: string[] }) => {
       const res = await StudioImageTasksService.createActorImageGenerationTaskApiV1StudioImageTasksActorsActorIdImageTasksPost({
         actorId: id,
-        requestBody: { image_id: imageId, model_id: null },
+        requestBody: { image_id: imageId, model_id: null, prompt: payload.prompt, images: payload.images } as any,
       })
       return res.data?.task_id ?? null
     },
@@ -76,11 +87,23 @@ export const assetAdapters = {
     updateImage: async (id: string, imageId: number, payload) => {
       await StudioEntitiesApi.updateImage('scene', id, imageId, normalizeUpdateImagePayload(payload))
     },
-    createGenerationTask: async (id: string, imageId: number) => {
+    renderPrompt: async (id: string, imageId: number) => {
+      const res = await StudioImageTasksService.renderAssetImagePromptApiV1StudioImageTasksAssetsAssetTypeAssetIdRenderPromptPost({
+        assetType: 'scene',
+        assetId: id,
+        requestBody: { image_id: imageId, model_id: null } as any,
+      })
+      const data = res.data
+      return {
+        prompt: (data?.prompt ?? '') as string,
+        images: (data?.images ?? []) as string[],
+      }
+    },
+    createGenerationTask: async (id: string, imageId: number, payload: { prompt: string; images: string[] }) => {
       const res = await StudioImageTasksService.createAssetImageGenerationTaskApiV1StudioImageTasksAssetsAssetTypeAssetIdImageTasksPost({
         assetType: 'scene',
         assetId: id,
-        requestBody: { image_id: imageId },
+        requestBody: { image_id: imageId, prompt: payload.prompt, images: payload.images } as any,
       })
       return res.data?.task_id ?? null
     },
@@ -108,11 +131,23 @@ export const assetAdapters = {
     updateImage: async (id: string, imageId: number, payload) => {
       await StudioEntitiesApi.updateImage('prop', id, imageId, normalizeUpdateImagePayload(payload))
     },
-    createGenerationTask: async (id: string, imageId: number) => {
+    renderPrompt: async (id: string, imageId: number) => {
+      const res = await StudioImageTasksService.renderAssetImagePromptApiV1StudioImageTasksAssetsAssetTypeAssetIdRenderPromptPost({
+        assetType: 'prop',
+        assetId: id,
+        requestBody: { image_id: imageId, model_id: null } as any,
+      })
+      const data = res.data
+      return {
+        prompt: (data?.prompt ?? '') as string,
+        images: (data?.images ?? []) as string[],
+      }
+    },
+    createGenerationTask: async (id: string, imageId: number, payload: { prompt: string; images: string[] }) => {
       const res = await StudioImageTasksService.createAssetImageGenerationTaskApiV1StudioImageTasksAssetsAssetTypeAssetIdImageTasksPost({
         assetType: 'prop',
         assetId: id,
-        requestBody: { image_id: imageId },
+        requestBody: { image_id: imageId, prompt: payload.prompt, images: payload.images } as any,
       })
       return res.data?.task_id ?? null
     },
@@ -140,11 +175,23 @@ export const assetAdapters = {
     updateImage: async (id: string, imageId: number, payload) => {
       await StudioEntitiesApi.updateImage('costume', id, imageId, normalizeUpdateImagePayload(payload))
     },
-    createGenerationTask: async (id: string, imageId: number) => {
+    renderPrompt: async (id: string, imageId: number) => {
+      const res = await StudioImageTasksService.renderAssetImagePromptApiV1StudioImageTasksAssetsAssetTypeAssetIdRenderPromptPost({
+        assetType: 'costume',
+        assetId: id,
+        requestBody: { image_id: imageId, model_id: null } as any,
+      })
+      const data = res.data
+      return {
+        prompt: (data?.prompt ?? '') as string,
+        images: (data?.images ?? []) as string[],
+      }
+    },
+    createGenerationTask: async (id: string, imageId: number, payload: { prompt: string; images: string[] }) => {
       const res = await StudioImageTasksService.createAssetImageGenerationTaskApiV1StudioImageTasksAssetsAssetTypeAssetIdImageTasksPost({
         assetType: 'costume',
         assetId: id,
-        requestBody: { image_id: imageId },
+        requestBody: { image_id: imageId, prompt: payload.prompt, images: payload.images } as any,
       })
       return res.data?.task_id ?? null
     },
