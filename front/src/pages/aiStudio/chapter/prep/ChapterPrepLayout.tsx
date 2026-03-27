@@ -9,7 +9,6 @@ import type { PrepFlowContext, StepKey } from './usePrepFlow'
 const { Header, Content } = Layout
 
 const STEP_ITEMS: { key: StepKey; title: string }[] = [
-  { key: 'consistency', title: '角色混淆一致性检查' },
   { key: 'divide', title: '分镜提取' },
   { key: 'extract', title: '项目级信息提取' },
 ]
@@ -62,7 +61,7 @@ export default function ChapterPrepLayout() {
       })
   }, [chapterId])
 
-  const currentStepKey = getStepKeyFromPathname(location.pathname) ?? 'consistency'
+  const currentStepKey = getStepKeyFromPathname(location.pathname) ?? 'divide'
   const currentStepIndex = Math.max(
     0,
     STEP_ITEMS.findIndex((x) => x.key === currentStepKey),
@@ -132,14 +131,12 @@ export default function ChapterPrepLayout() {
   const nextStep = currentStepIndex < STEP_ITEMS.length - 1 ? STEP_ITEMS[currentStepIndex + 1] : null
 
   const isStepAllowed = (key: StepKey) => {
-    if (key === 'consistency') return true
-    if (key === 'divide') return !!workingScriptText.trim() && consistencyDone
+    if (key === 'divide') return !!workingScriptText.trim()
     if (key === 'extract') return !!scriptDivision && editableShots.length > 0
     return false
   }
 
   const isCurrentStepCompleted = () => {
-    if (currentStepKey === 'consistency') return consistencyDone
     if (currentStepKey === 'divide') return !!scriptDivision && editableShots.length > 0
     if (currentStepKey === 'extract') return !!extractionDraft
     return false
@@ -225,7 +222,7 @@ export default function ChapterPrepLayout() {
             showIcon
             className="mb-3"
             message="当前章节没有原文内容"
-            description="请先点击右上角“编辑原文”粘贴/输入剧本，然后从“一致性检查”开始。"
+            description="请先点击右上角“编辑原文”粘贴/输入剧本，然后从“分镜提取”开始。"
           />
         )}
 

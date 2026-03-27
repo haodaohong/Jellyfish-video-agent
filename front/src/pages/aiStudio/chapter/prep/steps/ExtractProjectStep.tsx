@@ -121,7 +121,7 @@ export default function ExtractProjectStep() {
 
   return (
     <Card
-      title="Step 3 / 3：项目级信息提取（最终输出）"
+      title="Step 2 / 2：项目级信息提取（最终输出）"
       style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}
       bodyStyle={{ padding: 12, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       extra={

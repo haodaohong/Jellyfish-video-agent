@@ -159,7 +159,7 @@ export default function DivideStep() {
 
   return (
     <Card
-      title="Step 2 / 3：分镜提取（可编辑）"
+      title="Step 1 / 2：分镜提取（可编辑）"
       style={{ flex: 1, minHeight: 0, overflow: 'auto' }}
       bodyStyle={{ padding: 12 }}
       extra={
@@ -167,7 +167,7 @@ export default function DivideStep() {
           <Button type="primary" icon={<ThunderboltOutlined />} loading={loading} onClick={() => void runDivide()}>
             开始分镜提取
           </Button>
-          <Button icon={<PlusOutlined />} disabled={loading} onClick={addRow}>
+          <Button icon={<PlusOutlined />} disabled={loading || shots.length === 0} onClick={addRow}>
             新增镜头
           </Button>
           <Button danger icon={<DeleteOutlined />} disabled={loading} onClick={deleteSelected}>

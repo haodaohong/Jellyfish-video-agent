@@ -19,7 +19,6 @@ import AgentManagement from './pages/aiStudio/agents/AgentManagement'
 import AgentEdit from './pages/aiStudio/agents/AgentEdit.tsx'
 import ModelManagement from './pages/aiStudio/models/ModelManagement'
 import ChapterPrepLayout from './pages/aiStudio/chapter/prep/ChapterPrepLayout'
-import ConsistencyStep from './pages/aiStudio/chapter/prep/steps/ConsistencyStep'
 import DivideStep from './pages/aiStudio/chapter/prep/steps/DivideStep'
 import ExtractProjectStep from './pages/aiStudio/chapter/prep/steps/ExtractProjectStep'
 import { ChapterShotsPage } from './pages/aiStudio/shots/ChapterShotsPage'
@@ -36,8 +35,8 @@ const App: React.FC = () => {
           <Route path="projects/:projectId" element={<ProjectWorkbench />} />
           <Route path="projects/:projectId/roles/:characterId/edit" element={<RoleDetailPage />} />
           <Route path="projects/:projectId/chapters/:chapterId/prep" element={<ChapterPrepLayout />}>
-            <Route index element={<Navigate to="consistency" replace />} />
-            <Route path="consistency" element={<ConsistencyStep />} />
+            <Route index element={<Navigate to="divide" replace />} />
+            <Route path="consistency" element={<Navigate to="../divide" replace />} />
             <Route path="divide" element={<DivideStep />} />
             <Route path="extract" element={<ExtractProjectStep />} />
           </Route>
